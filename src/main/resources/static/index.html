@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0c12">
+  <meta name="description" content="QA AI — AI-помощник тестировщика. Анализ требований, тест-кейсы и поиск edge cases. Попробуйте интерактивную демонстрацию.">
+  <title>QA AI — AI-помощник тестировщика</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css?v=6">
+  <script src="/js/app.js?v=5" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+  <header class="header">
+    <div class="container header-inner">
+      <a class="logo" href="#" aria-label="QA AI — главная"><span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 1.5 14.9 9.1 22.5 12 14.9 14.9 12 22.5 9.1 14.9 1.5 12 9.1 9.1Z"/></svg></span> QA <span class="logo-ai">AI</span></a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="navigation" aria-label="Открыть меню"><span></span><span></span></button>
+      <nav id="navigation" class="navigation" aria-label="Основная навигация">
+        <a href="#features">Возможности</a><a href="#how-it-works">Как это работает</a><a href="#demo">Demo</a><a href="#faq">FAQ</a>
+        <a class="button button-small" href="#demo">Попробовать AI <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero container" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow badge"><span class="status-dot"></span> ТВОЙ НОВЫЙ QA-НАПАРНИК</div>
+        <h1 id="hero-title">AI-помощник<br>для <span class="hero-highlight">автотестировщика</span></h1>
+        <p class="hero-description">Анализируй требования, генерируй тест-кейсы и находи потенциальные проблемы быстрее.</p>
+        <div class="hero-actions">
+<a class="button" href="#demo">Попробовать бесплатно <span aria-hidden="true">↗</span></a>
+<a class="button button-secondary" href="#how-it-works"><span class="play" aria-hidden="true">▷</span> Как это работает</a></div>
+        <p class="hero-note"><span aria-hidden="true">✓</span> Без регистрации <span class="note-divider">·</span> Прямо в браузере <span class="note-divider">·</span> Demo-версия</p>
+      </div>
+      <div class="hero-visual">
+        <div class="chat-panel">
+          <div class="chat-header"><span class="mini-logo" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 1.5 14.9 9.1 22.5 12 14.9 14.9 12 22.5 9.1 14.9 1.5 12 9.1 9.1Z"/></svg></span><strong>QA AI</strong><span class="chat-label"><span class="status-dot"></span> Demo assistant</span><span class="dots" aria-hidden="true">•••</span></div>
+          <div class="chat-body">
+            <div class="message-label">ВЫ <span>сейчас</span></div>
+            <div class="user-message">Проанализируй этот endpoint<br><code><span>POST</span> /api/v1/users</code></div>
+            <div class="assistant-label"><span class="mini-logo" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 1.5 14.9 9.1 22.5 12 14.9 14.9 12 22.5 9.1 14.9 1.5 12 9.1 9.1Z"/></svg></span> QA AI <span class="tiny-pill">AI</span></div>
+            <p class="chat-intro">Обнаружены потенциальные проверки:</p>
+            <ul class="check-list">
+<li>Валидация обязательных полей</li>
+<li>Некорректный формат email</li>
+<li>Дубликат пользователя</li>
+<li>Проверка авторизации</li>
+<li>Граничные значения</li></ul>
+            <div class="chat-summary"><span aria-hidden="true">✧</span> 5 сценариев. Меньше рутины, больше качества.</div>
+          </div>
+          <div class="chat-input" aria-hidden="true"><span>Что проверим дальше?</span><span class="send-icon">↑</span></div>
+        </div>
+        <div class="floating-note"><span class="success-icon" aria-hidden="true">✓</span>
+<div><strong>На шаг ближе к качеству</strong><span>От требований — к проверкам</span></div><span class="note-spark" aria-hidden="true">✦</span></div>
+      </div>
+    </section>
+    <div class="workflow-strip container"><span>МЕНЬШЕ РУТИНЫ. БОЛЬШЕ QA.</span>
+<div><span>⌘ &nbsp; Требования</span><span class="strip-arrow">→</span><span>✧ &nbsp; AI-анализ</span><span class="strip-arrow">→</span><span>☑ &nbsp; Тест-кейсы</span><span class="strip-arrow">→</span><span>↗ &nbsp; Качество</span></div></div>
+    <section id="features" class="section container" aria-labelledby="features-title">
+      <div class="section-heading"><span class="eyebrow">ВОЗМОЖНОСТИ</span>
+<h2 id="features-title">Всё необходимое QA-инженеру</h2>
+<p>Один помощник для задач, с которых начинается качество.</p></div>
+      <div class="feature-grid">
+        <article class="feature-card"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M4 6h2m4 0h10M4 12h2m4 0h10M4 18h2m4 0h10"/></svg></span><span class="card-index">01</span>
+<h3>Генерация тест-кейсов</h3>
+<p>Превращайте требования в структурированный набор проверок.</p>
+<div class="card-tag">От идеи к тест-плану <span>↗</span></div></article>
+        <article class="feature-card"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M8 3H7a2 2 0 0 0-2 2v4a3 3 0 0 1-2 3 3 3 0 0 1 2 3v4a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v4a3 3 0 0 0 2 3 3 3 0 0 0-2 3v4a2 2 0 0 1-2 2h-1"/></svg></span><span class="card-index">02</span>
+<h3>Анализ API</h3>
+<p>Находите потенциальные проблемы в API и формируйте сценарии тестирования.</p>
+<div class="card-tag">Загляните глубже в API <span>↗</span></div></article>
+        <article class="feature-card"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="12" cy="12" r="7"/><path d="M12 2v20M2 12h20"/></svg></span><span class="card-index">03</span>
+<h3>Поиск edge cases</h3>
+<p>Получайте дополнительные сценарии, которые легко пропустить при ручном анализе.</p>
+<div class="card-tag">За пределами happy path <span>↗</span></div></article>
+        <article class="feature-card"><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 2c1.5 6 4 8.5 10 10-6 1.5-8.5 4-10 10-1.5-6-4-8.5-10-10 6-1.5 8.5-4 10-10Z"/></svg></span><span class="card-index">04</span>
+<h3>AI-анализ требований</h3>
+<p>Выявляйте неоднозначности, пропуски и потенциальные проблемы в требованиях.</p>
+<div class="card-tag">Ясность до первой строки кода <span>↗</span></div></article>
+      </div>
+    </section>
+    <section id="how-it-works" class="section container" aria-labelledby="how-title">
+      <div class="section-heading"><span class="eyebrow">КАК ЭТО РАБОТАЕТ</span>
+<h2 id="how-title">От требований к проверкам.<br>Всего три шага.</h2>
+<p>Впиши AI в свой привычный рабочий процесс.</p></div>
+      <div class="steps">
+<article><span class="step-number">01</span>
+<h3>Загрузи требования</h3>
+<p>Вставь описание задачи, user story<br>или спецификацию API.</p></article>
+<article><span class="step-number">02</span>
+<h3>AI анализирует</h3>
+<p>Помощник находит сценарии,<br>пробелы и граничные случаи.</p></article>
+<article><span class="step-number">03</span>
+<h3>Получи готовые проверки</h3>
+<p>Уточни результат и используй его<br>как основу для тестирования.</p></article></div>
+      <p class="section-note">Так будет работать сервис. Сейчас можно попробовать сценарий с готовым demo-ответом.</p>
+    </section>
+    <section id="demo" class="section container" aria-labelledby="demo-title">
+      <div class="section-heading"><span class="eyebrow">ПОПРОБУЙ В ДЕЛЕ <span class="tiny-pill">DEMO</span></span>
+<h2 id="demo-title">Выбери сценарий. Получи проверки.</h2>
+<p>Посмотри, какие тест-кейсы и риски можно выделить для базовой задачи.</p></div>
+      <div class="demo-workspace">
+        <div class="demo-input-panel">
+          <div class="panel-heading"><span><span class="panel-symbol" aria-hidden="true">☷</span> Сценарии проверки</span><span class="tiny-pill">DEMO</span></div>
+          <p class="scenario-intro">Выберите задачу — покажу подходящие тест-кейсы и потенциальные проблемы.</p>
+          <div class="scenario-grid" role="group" aria-label="Выбор сценария для анализа">
+            <button class="scenario-button" type="button" data-scenario="email" aria-pressed="true">Изменение email</button>
+            <button class="scenario-button" type="button" data-scenario="password" aria-pressed="false">Изменение пароля</button>
+            <button class="scenario-button" type="button" data-scenario="registration" aria-pressed="false">Регистрация</button>
+            <button class="scenario-button" type="button" data-scenario="login" aria-pressed="false">Авторизация</button>
+            <button class="scenario-button" type="button" data-scenario="recovery" aria-pressed="false">Восстановление пароля</button>
+            <button class="scenario-button" type="button" data-scenario="profile" aria-pressed="false">Изменение профиля</button>
+          </div>
+          <p id="demo-hint" class="demo-disclaimer">Выберите один из готовых сценариев. Результат демонстрационный; запросы к AI не выполняются.</p>
+        </div>
+        <div class="demo-output-panel">
+<div class="panel-heading"><span><span class="panel-symbol" aria-hidden="true">✧</span> Результат анализа</span><span class="tiny-pill">MOCK AI</span></div>
+          <div id="demo-status" class="result-status" role="status" aria-live="polite">Выбери сценарий слева, чтобы увидеть готовые проверки.</div>
+          <div id="empty-result" class="empty-result"><span aria-hidden="true">✦</span>
+<h3>Здесь начинается хороший тест</h3>
+<p>Выбери сценарий слева,<br>чтобы увидеть результат анализа.</p>
+<div class="empty-tags"><span>Тест-кейсы</span><span>Потенциальные проблемы</span></div></div>
+          <div id="demo-result" hidden>
+<div class="result-heading">
+<h3>Test cases</h3><span id="test-case-count">0 проверок</span></div>
+<ol class="test-cases" id="test-cases"></ol>
+<div class="issues">
+<h3><span aria-hidden="true">△</span> Potential issues</h3>
+<ul id="potential-issues"></ul></div></div>
+        </div>
+      </div>
+      <div class="demo-bottom-note"><span aria-hidden="true">◈</span> Твоя экспертиза + возможности AI. Решение всегда за тобой.</div>
+    </section>
+    <section class="statistics container" aria-label="Демонстрационные показатели">
+<div class="stat"><strong>40<span>%</span></strong>
+<p>меньше ручной работы</p></div>
+<div class="stat"><strong>2<span>×</span></strong>
+<p>быстрее подготовка тестов</p></div>
+<div class="stat"><strong>100<span>+</span></strong>
+<p>сценариев проверок</p></div>
+<p class="statistics-note"><span class="tiny-pill">DEMO</span> Иллюстративные значения, не результаты измерений.</p></section>
+    <section id="faq" class="section container faq-section" aria-labelledby="faq-title">
+<div class="faq-intro"><span class="eyebrow">FAQ</span>
+<h2 id="faq-title">Хорошие вопросы.<br>Честные ответы.</h2>
+<p>Всё, что нужно знать<br>перед первым тестом.</p><span class="faq-decoration" aria-hidden="true">✳</span></div>
+      <div class="faq-list">
+        <div class="faq-item">
+<h3>
+<button aria-expanded="false" aria-controls="faq-answer-1" id="faq-question-1">Заменяет ли QA AI тестировщика?<span aria-hidden="true">+</span></button></h3>
+<div id="faq-answer-1" role="region" aria-labelledby="faq-question-1" hidden>
+<p>Нет. AI помогает сократить рутину и предложить дополнительные проверки. Контекст продукта, оценка рисков и финальные решения остаются за QA-инженером.</p></div></div>
+        <div class="faq-item">
+<h3>
+<button aria-expanded="false" aria-controls="faq-answer-2" id="faq-question-2">Какие задачи может анализировать AI?<span aria-hidden="true">+</span></button></h3>
+<div id="faq-answer-2" role="region" aria-labelledby="faq-question-2" hidden>
+<p>В будущем — требования, user stories и описания API: для подготовки тест-кейсов, поиска edge cases и неоднозначностей. Сейчас demo показывает шесть готовых сценариев и соответствующие mock-проверки.</p></div></div>
+        <div class="faq-item">
+<h3>
+<button aria-expanded="false" aria-controls="faq-answer-3" id="faq-question-3">Можно ли использовать собственную модель?<span aria-hidden="true">+</span></button></h3>
+<div id="faq-answer-3" role="region" aria-labelledby="faq-question-3" hidden>
+<p>В текущей версии модель не подключена. Выбор собственной модели можно добавить на следующем этапе, когда появится Java REST API.</p></div></div>
+        <div class="faq-item">
+<h3>
+<button aria-expanded="false" aria-controls="faq-answer-4" id="faq-question-4">Можно ли подключить локальную LLM?<span aria-hidden="true">+</span></button></h3>
+<div id="faq-answer-4" role="region" aria-labelledby="faq-question-4" hidden>
+<p>Это следующий этап проекта: Java backend будет обращаться к локальной модели через LM Studio. В этом landing page интеграция ещё не реализована.</p></div></div>
+        <div class="faq-item">
+<h3>
+<button aria-expanded="false" aria-controls="faq-answer-5" id="faq-question-5">Как защищаются данные?<span aria-hidden="true">+</span></button></h3>
+<div id="faq-answer-5" role="region" aria-labelledby="faq-question-5" hidden>
+<p>В demo используется готовый пример: ввод пользовательских данных не предусмотрен. JavaScript показывает подготовленный результат без отправки запросов на сервер. Перед подключением настоящего AI отдельно проработаем обработку и защиту данных.</p></div></div>
+      </div>
+    </section>
+    <section class="cta container" aria-labelledby="cta-title"><span class="cta-star" aria-hidden="true">✦</span><span class="eyebrow">СЛЕДУЮЩИЙ ШАГ К КАЧЕСТВУ</span>
+<h2 id="cta-title">Тестируй умнее.<br><span>Трать меньше времени на рутину.</span></h2>
+<a class="button" href="#demo">Попробовать QA AI <span aria-hidden="true">↗</span></a>
+<p>Больше времени на то, что действительно важно.</p></section>
+  </main>
+  <footer class="footer container">
+<div class="footer-top">
+<div><a href="#" class="logo"><span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 1.5 14.9 9.1 22.5 12 14.9 14.9 12 22.5 9.1 14.9 1.5 12 9.1 9.1Z"/></svg></span> QA <span class="logo-ai">AI</span></a>
+<p>AI-инструмент для QA-инженеров</p></div>
+<nav aria-label="Навигация в подвале"><a href="#features">Возможности</a><a href="#demo">Demo</a><a href="#faq">FAQ</a><a href="https://github.com/Cackeeev/demo-qa-autotests" target="_blank" rel="noopener noreferrer" aria-label="GitHub — репозиторий проекта, в новой вкладке">GitHub ↗</a></nav></div>
+<div class="footer-bottom"><span>© 2026 QA AI</span><span>Pet-project. Создан с AI, продуман человеком.</span><span class="footer-status"><span class="status-dot"></span> Demo version</span></div></footer>
+</body>
+</html>
