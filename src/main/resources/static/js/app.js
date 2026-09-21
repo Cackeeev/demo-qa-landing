@@ -29,7 +29,6 @@ const result = document.querySelector('#demo-result');
 const emptyResult = document.querySelector('#empty-result');
 const status = document.querySelector('#demo-status');
 const testCases = document.querySelector('#test-cases');
-const potentialIssues = document.querySelector('#potential-issues');
 const testCaseCount = document.querySelector('#test-case-count');
 
 const scenarios = {
@@ -41,10 +40,6 @@ const scenarios = {
       'Проверка некорректного формата',
       'Отправка пустого значения',
       'Проверка максимальной длины email'
-    ],
-    issues: [
-      'Не задано ограничение длины email.',
-      'Не определено поведение при занятом адресе.'
     ]
   },
   password: {
@@ -55,10 +50,6 @@ const scenarios = {
       'Проверка минимальной длины нового пароля',
       'Проверка совпадения пароля и подтверждения',
       'Вход с новым паролем после смены'
-    ],
-    issues: [
-      'Не указаны требования к сложности пароля.',
-      'Не определено завершение других активных сессий.'
     ]
   },
   registration: {
@@ -69,10 +60,6 @@ const scenarios = {
       'Проверка обязательных полей',
       'Проверка некорректного email',
       'Проверка пароля, не отвечающего требованиям'
-    ],
-    issues: [
-      'Не описано подтверждение адреса email.',
-      'Не заданы правила сложности пароля.'
     ]
   },
   login: {
@@ -83,10 +70,6 @@ const scenarios = {
       'Отказ для незарегистрированного пользователя',
       'Проверка пустых полей',
       'Проверка блокировки после серии ошибок'
-    ],
-    issues: [
-      'Не задано число попыток до блокировки.',
-      'Не определён срок действия пользовательской сессии.'
     ]
   },
   recovery: {
@@ -97,10 +80,6 @@ const scenarios = {
       'Проверка срока действия ссылки',
       'Повторное использование ссылки',
       'Установка нового пароля по действующей ссылке'
-    ],
-    issues: [
-      'Не указан срок действия ссылки восстановления.',
-      'Не описаны ограничения на частоту запросов.'
     ]
   },
   profile: {
@@ -111,10 +90,6 @@ const scenarios = {
       'Проверка допустимой длины имени',
       'Отмена изменений без сохранения',
       'Сохранение профиля при сетевой ошибке'
-    ],
-    issues: [
-      'Не определены допустимые символы и длина имени.',
-      'Не описано поведение при ошибке сохранения.'
     ]
   }
 };
@@ -137,11 +112,10 @@ document.querySelectorAll('.scenario-button').forEach(button => {
     });
 
     renderList(testCases, scenario.cases);
-    renderList(potentialIssues, scenario.issues);
     testCaseCount.textContent = `${scenario.cases.length} проверок`;
     emptyResult.hidden = true;
     result.hidden = false;
-    status.textContent = `Demo-анализ готов: ${scenario.cases.length} тест-кейсов для ${scenario.name} и ${scenario.issues.length} потенциальные проблемы.`;
+    status.textContent = `Demo-анализ готов: ${scenario.cases.length} тест-кейсов для ${scenario.name}.`;
   });
 });
 

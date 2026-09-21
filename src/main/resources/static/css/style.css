@@ -860,26 +860,6 @@ p {
   margin-right:12px;
 }
 
-.issues {
-  background:#caa16608;
-  border:1px solid #caa16621;
-  border-radius:7px;
-  padding:13px;
-}
-
-.issues h3 {
-  font-size:11px;
-  color:#d3b68a;
-}
-
-.issues ul {
-  padding-left:16px;
-  font-size:10px;
-  color:#b3a392;
-  margin-bottom:0;
-  line-height:1.9;
-}
-
 .demo-bottom-note {
   text-align:center;
   color:#777182;
