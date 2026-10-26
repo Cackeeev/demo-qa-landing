@@ -12,6 +12,7 @@
     "build": "npm run prepare:media && tsc --noEmit && vite build",
     "build:pages": "npm run prepare:media && tsc --noEmit && vite build --mode pages --base=/demo-qa-landing/ --outDir docs && node scripts/finish-pages.mjs",
     "test:pages": "playwright test --config=playwright.pages.config.ts",
+    "test:userscript": "node --check public/userscripts/classic-vk.user.js && playwright test --config=playwright.userscript.config.ts",
     "start": "node --use-env-proxy --use-system-ca --env-file-if-exists=.env server/index.mjs --production",
     "test": "node --test server/*.test.mjs",
     "test:e2e": "playwright test"

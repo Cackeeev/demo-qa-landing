@@ -1,6 +1,6 @@
 const BASE = new URL("./", self.location.href).pathname;
 const PREFIX = `classic-shell-${BASE}-`;
-const CACHE = `${PREFIX}v3`;
+const CACHE = `${PREFIX}v4`;
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -39,6 +39,10 @@ self.addEventListener("fetch", (event) => {
     !url.pathname.startsWith(BASE) ||
     url.pathname.startsWith(`${BASE}api/`) ||
     url.pathname.startsWith(`${BASE}auth/`) ||
+    url.pathname.startsWith(`${BASE}userscripts/`) ||
+    (request.mode === "navigate" &&
+      url.pathname !== BASE &&
+      url.pathname !== `${BASE}index.html`) ||
     url.search ||
     request.headers.has("range")
   )

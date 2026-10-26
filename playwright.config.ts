@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: "**/pages.spec.ts",
+  testIgnore: ["**/pages.spec.ts", "**/userscript.spec.ts"],
   fullyParallel: true,
   workers: 2,
   reporter: "list",

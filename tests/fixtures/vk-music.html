@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"><title>VK music DOM fixture — not a live VK login</title>
+<style>body{font:14px Arial;padding:20px}.audio_row{display:flex;align-items:center;gap:15px;margin:10px;padding:12px;border:1px solid #aaa}.audio_row__play_btn{width:36px;height:36px}.audio_row__title_inner{display:block}.audio_row__performers{display:block;font-size:12px}.ads_ads_box{padding:10px;background:#fee}button{padding:10px}</style></head><body>
+<h1>VK music fixture</h1>
+<div class="ads_ads_box">Test advertising card</div>
+<div><button class="top_audio_player_prev">Previous</button><button class="top_audio_player_play" aria-label="Воспроизвести">Play/pause</button><button class="top_audio_player_next">Next</button></div>
+<main id="fixture-tracks">
+<div class="audio_row" data-full-id="42_1"><button class="audio_row__play_btn" aria-label="Воспроизвести">▶</button><span><strong class="audio_row__title_inner">Ночной маршрут</strong><span class="audio_row__performers">Тестовый исполнитель</span></span><span class="audio_row__duration">0:32</span></div>
+<div class="audio_row" data-full-id="42_2"><button class="audio_row__play_btn" aria-label="Воспроизвести">▶</button><span><strong class="audio_row__title_inner">После дождя</strong><span class="audio_row__performers">Тестовый исполнитель</span></span><span class="audio_row__duration">0:32</span></div>
+</main><audio id="fixture-audio" preload="metadata" src="/fixture.wav"></audio>
+<script>
+  const audio=document.querySelector('audio');
+  let current=null;
+  window.fixtureCommands=[];
+  window.fixtureBlocked=false;
+  function update(){
+    document.querySelectorAll('.audio_row').forEach(row=>{
+      row.classList.toggle('audio_row__current',row===current);
+      row.classList.toggle('audio_row__playing',row===current&&!audio.paused&&!window.fixtureBlocked);
+    });
+    document.querySelector('.top_audio_player_play').setAttribute('aria-label',audio.paused?'Воспроизвести':'Пауза');
+  }
+  function playRow(row){
+    window.fixtureCommands.push(row.dataset.fullId);
+    if(window.fixtureBlocked)return;
+    current=row; audio.currentTime=0; audio.play().then(update);
+  }
+  document.addEventListener('click',event=>{
+    const row=event.target.closest('.audio_row');
+    if(row)playRow(row);
+  });
+  document.querySelector('.top_audio_player_play').onclick=()=>{
+    window.fixtureCommands.push('play-toggle');
+    if(window.fixtureBlocked)return;
+    if(audio.paused){current=current||document.querySelector('.audio_row');audio.play().then(update)}else audio.pause();
+  };
+  document.querySelector('.top_audio_player_next').onclick=()=>{
+    window.fixtureCommands.push('next');
+    const rows=Array.from(document.querySelectorAll('.audio_row'));playRow(rows[(rows.indexOf(current)+1)%rows.length]);
+  };
+  document.querySelector('.top_audio_player_prev').onclick=()=>{
+    window.fixtureCommands.push('previous');
+    const rows=Array.from(document.querySelectorAll('.audio_row'));playRow(rows[(Math.max(0,rows.indexOf(current))-1+rows.length)%rows.length]);
+  };
+  audio.addEventListener('play',update);audio.addEventListener('pause',update);
+</script></body></html>

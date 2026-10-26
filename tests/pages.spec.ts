@@ -242,3 +242,40 @@ test("Pages PWA manifest, icons and service worker stay within the project direc
       ).status(),
     ).toBe(200);
 });
+
+test("userscript installer is available in the app and cannot replace the cached PWA shell", async ({
+  page,
+  context,
+}) => {
+  await page.goto("./");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.getByRole("button", { name: "Инструкция", exact: true }).click();
+  const guide = page.getByRole("dialog", { name: "Подключение и помощь" });
+  await guide
+    .locator("summary")
+    .filter({ hasText: "Тест VK без сервера" })
+    .click();
+  const installer = guide.getByRole("link", {
+    name: /Открыть установочный userscript/,
+  });
+  await expect(installer).toHaveAttribute(
+    "href",
+    "/demo-qa-landing/userscripts/classic-vk.user.js",
+  );
+  const response = await page.request.get(
+    (await installer.getAttribute("href"))!,
+  );
+  expect(response.status()).toBe(200);
+  expect(await response.text()).toContain("@inject-into  content");
+  const tab = await context.newPage();
+  await tab.goto(
+    "http://localhost:4173/demo-qa-landing/userscripts/classic-vk.user.js",
+  );
+  const shell = await page.evaluate(async () => {
+    const response = await caches.match("/demo-qa-landing/");
+    return response?.text();
+  });
+  expect(shell).toContain('<div id="root">');
+  expect(shell).not.toContain("==UserScript==");
+  await tab.close();
+});
