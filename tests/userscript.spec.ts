@@ -137,7 +137,7 @@ test("VK's normalized ARIA progress bar seeks actual audio without exposing an a
   const original = await readFile("tests/fixtures/vk-music-modern.html", "utf8");
   const html = original.replace("</body>", `
     <div role="presentation" data-testid="AudioPlayerBlock_ProgressBar" style="width:400px;height:20px">
-      <div role="slider" aria-label="Прогресс воспроизведения" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" style="width:100%;height:100%"></div>
+      <div role="slider" aria-label="Прогресс воспроизведения" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" style="width:10px;height:100%"></div>
     </div>
     <script>
       // Local event wiring only; actual VK handlers still need user validation.
@@ -147,6 +147,12 @@ test("VK's normalized ARIA progress bar seeks actual audio without exposing an a
       const slider = bar.querySelector('[role="slider"]');
       let pendingSeek = null;
       bar.addEventListener('mousedown', event => {
+        if (event.target !== bar) return;
+        const rect = bar.getBoundingClientRect();
+        pendingSeek = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      });
+      bar.addEventListener('mousemove', event => {
+        if (pendingSeek === null) return;
         const rect = bar.getBoundingClientRect();
         pendingSeek = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
       });
@@ -176,6 +182,16 @@ test("VK's normalized ARIA progress bar seeks actual audio without exposing an a
   await progress.fill("25");
   await expect.poll(currentTime).toBeGreaterThanOrEqual(8);
   await expect.poll(currentTime).toBeLessThan(10);
+});
+
+test("long footer notices do not resize or move the iPod body", async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 1100 });
+  const host = await fixture(page);
+  const before = await host.locator(".device").boundingBox();
+  await page.evaluate(() => Reflect.set(window, "fixtureBlocked", true));
+  await host.getByRole("button", { name: /Ночной маршрут Тестовый исполнитель/ }).click();
+  await expect(host.getByRole("status")).toContainText("Воспроизведение не подтверждено", { timeout: 6000 });
+  expect(await host.locator(".device").boundingBox()).toEqual(before);
 });
 
 test("login/unsupported markup stays accessible and never becomes a fake connected library", async ({
