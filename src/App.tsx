@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { asset, IS_PAGES } from "./hosting";
+import ConnectionGuide from "./ConnectionGuide";
+import { useFeedback } from "./useFeedback";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 type View =
@@ -176,6 +178,8 @@ export default function App() {
   const [sessionError, setSessionError] = useState(false);
   const [appId, setAppId] = useState(savedAppId);
   const [authOpen, setAuthOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const feedback = useFeedback();
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const [toast, setToast] = useState("");
@@ -423,6 +427,7 @@ export default function App() {
         label: "Подключение",
         action: () => go("connection"),
       },
+      { id: "guide", label: "Инструкция", action: () => setGuideOpen(true) },
     ];
   else if (view === "tracks" || view === "search")
     items = filtered.map((track) => ({
@@ -463,11 +468,13 @@ export default function App() {
     ].map((label) => ({ id: label, label, action: () => openTracks(label) }));
   const active = Math.min(selected, Math.max(0, items.length - 1));
   function step(amount: number) {
-    if (items.length)
+    if (items.length) {
+      feedback.tick();
       setSelected(
         (previous) =>
           (((previous + amount) % items.length) + items.length) % items.length,
       );
+    }
   }
   function choose() {
     if (view === "now") playPause();
@@ -486,6 +493,7 @@ export default function App() {
     playPause,
     nextTrack,
     authOpen,
+    guideOpen,
   });
   keyboardActions.current = {
     step,
@@ -494,6 +502,7 @@ export default function App() {
     playPause,
     nextTrack,
     authOpen,
+    guideOpen,
   };
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -505,7 +514,7 @@ export default function App() {
       )
         return;
       const actions = keyboardActions.current;
-      if (actions.authOpen) return;
+      if (actions.authOpen || actions.guideOpen) return;
       const handlers: Record<string, () => void> = {
         ArrowDown: () => actions.step(1),
         ArrowUp: () => actions.step(-1),
@@ -665,7 +674,11 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      onPointerDownCapture={feedback.onPointerDownCapture}
+      onClickCapture={feedback.onClickCapture}
+    >
       <header className="site-header">
         <a
           className="wordmark"
@@ -980,6 +993,12 @@ export default function App() {
                     Вход в аккаунт не открывает доступ к музыке VK
                     автоматически.
                   </p>
+                  <button
+                    className="connection-guide-link"
+                    onClick={() => setGuideOpen(true)}
+                  >
+                    Пошаговая инструкция →
+                  </button>
                 </div>
               </div>
             )}
@@ -1183,14 +1202,15 @@ export default function App() {
                 Вход через VK ID требует отдельного сервера и недоступен на
                 GitHub Pages.
               </p>
-              <a
+              <button
                 className="pages-docs-link"
-                href="https://github.com/Cackeeev/demo-qa-landing#подключение-настоящей-авторизации-vk-id"
-                target="_blank"
-                rel="noopener noreferrer"
+                onClick={() => {
+                  setAuthOpen(false);
+                  setGuideOpen(true);
+                }}
               >
-                Как подключить VK ID ↗
-              </a>
+                Как подключить VK ID →
+              </button>
               <button
                 className="vk-login-button"
                 onClick={() => setAuthOpen(false)}
@@ -1245,6 +1265,16 @@ export default function App() {
                     в разрешённые адреса приложения VK ID.
                   </p>
                 </details>
+                <button
+                  type="button"
+                  className="pages-docs-link"
+                  onClick={() => {
+                    setAuthOpen(false);
+                    setGuideOpen(true);
+                  }}
+                >
+                  Полная инструкция в плеере →
+                </button>
                 <p className="auth-error" role="alert">
                   {authError}
                 </p>
@@ -1274,6 +1304,20 @@ export default function App() {
           </p>
         </div>
       </dialog>
+      <ConnectionGuide
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        redirectUri={session?.auth.redirectUri}
+        feedback={feedback}
+        onImport={() => {
+          setGuideOpen(false);
+          files.current?.click();
+        }}
+        onConnect={() => {
+          setGuideOpen(false);
+          go("connection");
+        }}
+      />
     </div>
   );
 }

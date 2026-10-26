@@ -1,6 +1,6 @@
 const BASE = new URL("./", self.location.href).pathname;
 const PREFIX = `classic-shell-${BASE}-`;
-const CACHE = `${PREFIX}v2`;
+const CACHE = `${PREFIX}v3`;
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches

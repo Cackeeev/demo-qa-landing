@@ -118,7 +118,7 @@ test("VK connection distinguishes real login from music access and validates app
   await page.getByRole("button", { name: "Продолжить с VK ID" }).click();
   await expect(page.getByRole("alert")).toContainText("Укажите числовой ID");
   await page.getByText("Приложения ещё нет?").click();
-  await expect(page.locator("details code")).toHaveText(
+  await expect(page.getByRole("dialog").locator("details code")).toHaveText(
     "http://localhost:3000/auth/vk/callback",
   );
   await page
