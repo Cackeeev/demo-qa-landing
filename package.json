@@ -1,0 +1,32 @@
+{
+  "name": "classic-music",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24.5.0"
+  },
+  "scripts": {
+    "prepare:media": "node scripts/generate-media.mjs",
+    "dev": "node --use-env-proxy --use-system-ca --env-file-if-exists=.env server/index.mjs",
+    "build": "npm run prepare:media && tsc --noEmit && vite build",
+    "build:pages": "npm run prepare:media && tsc --noEmit && vite build --mode pages --base=/demo-qa-landing/ --outDir docs && node scripts/finish-pages.mjs",
+    "test:pages": "playwright test --config=playwright.pages.config.ts",
+    "start": "node --use-env-proxy --use-system-ca --env-file-if-exists=.env server/index.mjs --production",
+    "test": "node --test server/*.test.mjs",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.0"
+  }
+}
