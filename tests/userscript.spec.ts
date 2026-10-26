@@ -133,6 +133,51 @@ test("screenshot-observed MusicTrackRow markup lists rendered names and uses its
   )).toBe(true);
 });
 
+test("VK's normalized ARIA progress bar seeks actual audio without exposing an audio element or a duration", async ({ page }) => {
+  const original = await readFile("tests/fixtures/vk-music-modern.html", "utf8");
+  const html = original.replace("</body>", `
+    <div role="presentation" data-testid="AudioPlayerBlock_ProgressBar" style="width:400px;height:20px">
+      <div role="slider" aria-label="Прогресс воспроизведения" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" style="width:100%;height:100%"></div>
+    </div>
+    <script>
+      // Local event wiring only; actual VK handlers still need user validation.
+      audio.remove();
+      window.fixtureDetachedAudio = audio;
+      const bar = document.querySelector('[data-testid="AudioPlayerBlock_ProgressBar"]');
+      const slider = bar.querySelector('[role="slider"]');
+      let pendingSeek = null;
+      bar.addEventListener('mousedown', event => {
+        const rect = bar.getBoundingClientRect();
+        pendingSeek = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      });
+      document.addEventListener('mouseup', () => {
+        if (pendingSeek === null || !Number.isFinite(audio.duration)) return;
+        audio.currentTime = pendingSeek * audio.duration;
+        pendingSeek = null;
+        slider.setAttribute('aria-valuenow', String(audio.currentTime / audio.duration));
+      });
+      audio.addEventListener('timeupdate', () => {
+        if (Number.isFinite(audio.duration)) slider.setAttribute('aria-valuenow', String(audio.currentTime / audio.duration));
+      });
+    </script>
+  </body>`);
+  const host = await fixture(page, html, "/music/catalog/fixture");
+  await host.getByRole("button", { name: /Ночной маршрут Тестовый исполнитель/ }).click();
+  const currentTime = () => page.evaluate(() => (Reflect.get(window, "fixtureDetachedAudio") as HTMLAudioElement).currentTime);
+  await expect.poll(currentTime).toBeGreaterThan(0);
+  await expect(page.locator("audio")).toHaveCount(0);
+  const progress = host.getByRole("slider", { name: "Позиция записи VK" });
+  await expect(progress).toBeEnabled();
+  await expect(progress).toHaveAttribute("max", "100");
+  await expect(host.locator(".duration")).toHaveText("100 %");
+  await progress.fill("50");
+  await expect.poll(currentTime).toBeGreaterThanOrEqual(16);
+  await expect.poll(currentTime).toBeLessThan(18);
+  await progress.fill("25");
+  await expect.poll(currentTime).toBeGreaterThanOrEqual(8);
+  await expect.poll(currentTime).toBeLessThan(10);
+});
+
 test("login/unsupported markup stays accessible and never becomes a fake connected library", async ({
   page,
 }) => {

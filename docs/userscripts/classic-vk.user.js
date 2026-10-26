@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLASSIC — тестовый плеер VK
 // @namespace    https://github.com/Cackeeev/demo-qa-landing
-// @version      0.1.2
+// @version      0.1.3
 // @description  Интерфейс iPod поверх веб-плеера VK. Эксперимент: только управление существующей страницей, без токенов и внешних серверов.
 // @match        https://vk.ru/*
 // @match        https://www.vk.ru/*
@@ -17,7 +17,7 @@
 
 (() => {
   "use strict";
-  const VERSION = "0.1.2";
+  const VERSION = "0.1.3";
   const HOST_ID = "classic-vk-controller";
   const ALLOWED = new Set([
     "vk.ru",
@@ -55,7 +55,7 @@
       ".audio_row__current, .audio_row_current, .audio_item_current, [data-state='playing'], [data-state='paused']",
     playing:
       ".audio_row__playing, .audio_row_playing, .audio_item_playing, [data-state='playing']",
-    seek: "input[type='range'][aria-label*='Позиция'], input[type='range'][aria-label*='Перемотка'], input[type='range'][data-testid='player-seek']",
+    seek: "input[type='range'][aria-label*='Позиция'], input[type='range'][aria-label*='Перемотка'], input[type='range'][data-testid='player-seek'], [data-testid='AudioPlayerBlock_ProgressBar'] [role='slider'][aria-label='Прогресс воспроизведения'], [role='slider'][aria-label='Прогресс воспроизведения']",
   };
   const PREF_KEY = "classic-vk.preferences.v1";
   let preferences = { ads: false, vibration: false, open: true };
@@ -178,8 +178,22 @@
       null
     );
   }
+  function seekControl() {
+    for (const slider of document.querySelectorAll(SELECTORS.seek)) {
+      if (!usable(slider) || slider.disabled || slider.getAttribute("aria-disabled") === "true") continue;
+      const input = slider instanceof HTMLInputElement;
+      if (!input && !["aria-valuemin", "aria-valuemax", "aria-valuenow"].every((name) => slider.hasAttribute(name))) continue;
+      const minimum = Number(input ? slider.min || 0 : slider.getAttribute("aria-valuemin"));
+      const maximum = Number(input ? slider.max || 100 : slider.getAttribute("aria-valuemax"));
+      const value = Number(input ? slider.value : slider.getAttribute("aria-valuenow"));
+      if (![minimum, maximum, value].every(Number.isFinite) || maximum <= minimum) continue;
+      return { slider, minimum, maximum, fraction: Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum))) };
+    }
+    return null;
+  }
   function snapshot() {
     const audio = media();
+    const control = seekControl();
     const observed =
       tracks.find((track) => track.row.matches(SELECTORS.playing)) ||
       tracks.find((track) => track.row.matches(SELECTORS.current));
@@ -207,11 +221,12 @@
       playing,
       pausedKnown,
       duration,
+      seekFraction: control?.fraction ?? null,
       position:
         audio && Number.isFinite(audio.currentTime) ? audio.currentTime : null,
       seekable:
         !!(audio && Number.isFinite(audio.duration) && audio.duration > 0) ||
-        !!first(SELECTORS.seek),
+        !!control,
     };
   }
   function notify(message) {
@@ -304,20 +319,33 @@
       updateStatus();
       return;
     }
-    const slider = first(SELECTORS.seek);
-    if (!slider || !state.duration) {
+    const control = seekControl();
+    if (!control) {
       notify("Для этой страницы перемотка доступна в оригинальном плеере VK.");
       return;
     }
-    const minimum = Number(slider.min || 0),
-      maximum = Number(slider.max || 100);
-    const value = minimum + (position / state.duration) * (maximum - minimum);
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    ).set.call(slider, String(value));
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
-    slider.dispatchEvent(new Event("change", { bubbles: true }));
+    const { slider, minimum, maximum } = control;
+    const fraction = Math.max(0, Math.min(1, position / (state.duration || 100)));
+    if (slider instanceof HTMLInputElement) {
+      const value = minimum + fraction * (maximum - minimum);
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(slider, String(value));
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    } else {
+      // Forward the user's seek gesture to the page's own progress bar. Do not
+      // assign aria-valuenow: only VK can confirm that its position changed.
+      const bar = slider.closest("[data-testid='AudioPlayerBlock_ProgressBar']") || slider;
+      const rect = bar.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const coordinates = { clientX: rect.left + rect.width * fraction, clientY: rect.top + rect.height / 2, button: 0, bubbles: true, cancelable: true, composed: true };
+      const pointer = { ...coordinates, pointerId: 1, pointerType: "mouse", isPrimary: true };
+      if (typeof PointerEvent === "function") slider.dispatchEvent(new PointerEvent("pointerdown", { ...pointer, buttons: 1 }));
+      slider.dispatchEvent(new MouseEvent("mousedown", { ...coordinates, buttons: 1 }));
+      if (typeof PointerEvent === "function") document.dispatchEvent(new PointerEvent("pointerup", { ...pointer, buttons: 0 }));
+      document.dispatchEvent(new MouseEvent("mouseup", { ...coordinates, buttons: 0 }));
+      slider.dispatchEvent(new MouseEvent("click", { ...coordinates, buttons: 0, detail: 1 }));
+    }
+    updateStatus();
   }
 
   const host = document.createElement("div");
@@ -675,16 +703,17 @@
         : state.pausedKnown && state.current
           ? "Пауза / ожидание VK"
           : "Воспроизведение пока не подтверждено";
-      $(".elapsed").textContent =
-        state.position === null ? "—:——" : formatTime(state.position);
-      $(".duration").textContent = state.duration
-        ? formatTime(state.duration)
-        : "—:——";
+      const percentOnly = !state.duration && state.seekFraction !== null;
+      $(".elapsed").textContent = percentOnly
+        ? `${Math.round(state.seekFraction * 100)} %`
+        : state.position === null ? "—:——" : formatTime(state.position);
+      $(".duration").textContent = percentOnly ? "100 %" : state.duration
+        ? formatTime(state.duration) : "—:——";
       const range = $(".progress input");
       range.max = String(state.duration || 100);
       range.disabled = !state.seekable;
       if (shadow.activeElement !== range)
-        range.value = String(state.position || 0);
+        range.value = String(state.position ?? ((state.seekFraction || 0) * (state.duration || 100)));
     }
   }
   function refresh() {
