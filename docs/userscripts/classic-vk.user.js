@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLASSIC — тестовый плеер VK
 // @namespace    https://github.com/Cackeeev/demo-qa-landing
-// @version      0.1.0
+// @version      0.1.2
 // @description  Интерфейс iPod поверх веб-плеера VK. Эксперимент: только управление существующей страницей, без токенов и внешних серверов.
 // @match        https://vk.ru/*
 // @match        https://www.vk.ru/*
@@ -17,7 +17,7 @@
 
 (() => {
   "use strict";
-  const VERSION = "0.1.0";
+  const VERSION = "0.1.2";
   const HOST_ID = "classic-vk-controller";
   const ALLOWED = new Set([
     "vk.ru",
@@ -38,7 +38,7 @@
   // DOM-only adapter. No fetch/XHR, cookie access, token extraction, unsafeWindow,
   // remote code, stream URL extraction, or calls to undocumented VK endpoints.
   const SELECTORS = {
-    rows: ".audio_row, .audio_item, [data-testid='audio-row'], [data-testid='track-row'], [data-testid='music-track'], [class*='AudioRow__root'], [class*='AudioItem__root']",
+    rows: ".audio_row, .audio_item, [data-testid='audio-row'], [data-testid='track-row'], [data-testid='music-track'], [data-testid='MusicTrackRow'], [class*='AudioRow__root'], [class*='AudioItem__root']",
     title:
       ".audio_row__title_inner, .audio_row__title, .audio_item__title, .audio_item_title, .ai_title, [data-testid='audio-title'], [data-testid='track-title']",
     artist:
@@ -46,7 +46,7 @@
     duration:
       ".audio_row__duration, .audio_item__duration, .ai_dur, [data-testid='track-duration']",
     rowPlay:
-      ".audio_row__play_btn, .audio_row__play, .audio_item__play, .ai_play, [data-testid='track-play'], button[aria-label='Воспроизвести'], button[aria-label='Play']",
+      ".audio_row__play_btn, .audio_row__play, .audio_item__play, .ai_play, [data-testid='track-play'], [data-testid='audiorow-tappable'][role='button'], button[aria-label='Воспроизвести'], button[aria-label='Play']",
     play: ".top_audio_player_play, .audio_page_player_play, .audio_player__play, [data-testid='player-play'], [data-testid='player-pause']",
     next: ".top_audio_player_next, .audio_page_player_next, .audio_player__next, [data-testid='player-next']",
     previous:
@@ -121,17 +121,37 @@
       .split(":")
       .reduce((result, part) => result * 60 + Number(part), 0);
   }
+  function modernTrackText(row) {
+    // Use the attributes shown in the supplied inspector screenshot and the
+    // rendered title/artist lines, without depending on generated CSS classes
+    // or on the visibility of the row's playback button.
+    if (
+      !row.matches("[data-testid='MusicTrackRow']") ||
+      !row.closest("[data-testentitytag='audio'][data-audio-id]")
+    )
+      return { title: "", artist: "" };
+    const lines = row.innerText
+      .split(/\r?\n/)
+      .map((line) => line.replace(/\s+/g, " ").trim().slice(0, 300))
+      .filter(Boolean);
+    // The trailing time can be elapsed playback time, so do not treat it as
+    // the full duration. Actual HTML audio remains the duration source.
+    if (/^\d{1,2}:\d{2}(?::\d{2})?$/.test(lines.at(-1) || "")) lines.pop();
+    return { title: lines[0] || "", artist: lines[1] || "" };
+  }
   function scanTracks() {
     const result = [];
     const ids = new Set();
     for (const row of document.querySelectorAll(SELECTORS.rows)) {
       if (!usable(row) || row.parentElement?.closest(SELECTORS.rows)) continue;
-      const title = text(row, SELECTORS.title);
+      const modern = modernTrackText(row);
+      const title = text(row, SELECTORS.title) || modern.title;
       if (!title) continue;
       if (!rowIds.has(row)) rowIds.set(row, `dom-${++sequence}`);
       const id =
         row.getAttribute("data-full-id") ||
         row.getAttribute("data-audio-id") ||
+        row.closest("[data-testentitytag='audio'][data-audio-id]")?.getAttribute("data-audio-id") ||
         rowIds.get(row);
       if (ids.has(id)) continue;
       ids.add(id);
@@ -139,7 +159,7 @@
         id,
         row,
         title,
-        artist: text(row, SELECTORS.artist) || "VK Музыка",
+        artist: text(row, SELECTORS.artist) || modern.artist || "VK Музыка",
         duration: parseTime(text(row, SELECTORS.duration)),
       });
       if (result.length === 500) break;
@@ -228,7 +248,11 @@
       return;
     }
     currentId = track.id;
-    if (!clickNative(first(SELECTORS.rowPlay, track.row) || track.row)) {
+    if (!clickNative(
+      first(SELECTORS.rowPlay, track.row) ||
+      track.row.querySelector("[data-testid='audiorow-tappable'][role='button']") ||
+      track.row,
+    )) {
       notify("Не удалось найти кнопку записи. Открой её на странице VK.");
       return;
     }

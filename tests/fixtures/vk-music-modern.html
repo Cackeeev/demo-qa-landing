@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>VK MusicTrackRow fixture — local test only</title></head>
+<body>
+<h1>Local fixture using attributes shown in the supplied inspector screenshot</h1>
+<main role="list">
+  <div data-testentitytag="audio" data-audio-id="42_1">
+    <div data-testid="MusicTrackRow">
+      <div role="button" tabindex="0" aria-label="Начать прослушивание" data-testid="audiorow-tappable"><span aria-hidden="true"></span></div>
+      <div><div>Ночной маршрут</div><div>Тестовый исполнитель</div><div>0:32</div></div>
+    </div>
+  </div>
+  <div data-testentitytag="audio" data-audio-id="42_2">
+    <div data-testid="MusicTrackRow">
+      <div role="button" tabindex="0" aria-label="Начать прослушивание" data-testid="audiorow-tappable" style="visibility:hidden"><span aria-hidden="true"></span></div>
+      <div><div>После дождя</div><div>Другой исполнитель</div><div>0:32</div></div>
+    </div>
+  </div>
+</main>
+<audio id="fixture-audio" preload="metadata" src="/fixture.wav"></audio>
+<script>
+  // Test playback wiring only; this is not VK's implementation.
+  const audio = document.querySelector('audio');
+  window.fixtureCommands = [];
+  document.querySelectorAll('[data-testid="audiorow-tappable"]').forEach(control => {
+    control.onclick = () => {
+      window.fixtureCommands.push(control.closest('[data-audio-id]').dataset.audioId);
+      audio.currentTime = 0;
+      audio.play();
+    };
+  });
+</script>
+</body>
+</html>

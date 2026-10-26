@@ -105,6 +105,34 @@ test("DOM adapter plays real fixture audio through original VK controls and pres
     .toBe(true);
 });
 
+test("screenshot-observed MusicTrackRow markup lists rendered names and uses its native play control", async ({ page }) => {
+  const html = await readFile("tests/fixtures/vk-music-modern.html", "utf8");
+  const host = await fixture(page, html, "/music/catalog/fixture");
+  await expect(host.locator(".track-list .row")).toHaveCount(2);
+  await expect(host.locator(".track-list strong")).toHaveText([
+    "Ночной маршрут",
+    "После дождя",
+  ]);
+  await expect(host.locator(".track-list small")).toHaveText([
+    "Тестовый исполнитель",
+    "Другой исполнитель",
+  ]);
+  await host.getByRole("button", { name: /Ночной маршрут Тестовый исполнитель/ }).click();
+  await expect.poll(() => page.locator("#fixture-audio").evaluate(
+    (audio: HTMLAudioElement) => !audio.paused && audio.currentTime > 0,
+  )).toBe(true);
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, "fixtureCommands"))).toEqual(["42_1"]);
+  await host.getByRole("button", { name: "Следующий трек VK" }).click();
+  await expect(host.locator(".track-title")).toHaveText("После дождя");
+  await host.getByRole("button", { name: "Предыдущий трек VK" }).click();
+  await expect(host.locator(".track-title")).toHaveText("Ночной маршрут");
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, "fixtureCommands"))).toEqual(["42_1", "42_2", "42_1"]);
+  await host.getByRole("button", { name: "Воспроизвести или приостановить в VK" }).click();
+  await expect.poll(() => page.locator("#fixture-audio").evaluate(
+    (audio: HTMLAudioElement) => audio.paused,
+  )).toBe(true);
+});
+
 test("login/unsupported markup stays accessible and never becomes a fake connected library", async ({
   page,
 }) => {
