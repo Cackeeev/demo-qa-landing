@@ -133,55 +133,157 @@ test("screenshot-observed MusicTrackRow markup lists rendered names and uses its
   )).toBe(true);
 });
 
-test("VK's normalized ARIA progress bar seeks actual audio without exposing an audio element or a duration", async ({ page }) => {
+for (const withBodyWrapper of [true, false]) {
+test(`VK native progress follows track changes and restores its place (${withBodyWrapper ? "body wrapper" : "progress root"})`, async ({ page }) => {
   const original = await readFile("tests/fixtures/vk-music-modern.html", "utf8");
   const html = original.replace("</body>", `
-    <div role="presentation" data-testid="AudioPlayerBlock_ProgressBar" style="width:400px;height:20px">
-      <div role="slider" aria-label="Прогресс воспроизведения" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" style="width:10px;height:100%"></div>
+    ${withBodyWrapper ? '<div data-testid="audioplayerplaybackbody-progressbar">' : ''}
+    <div role="presentation" data-testid="AudioPlayerBlock_ProgressBar" style="position:relative;width:400px;height:20px">
+      <div data-testid="fixture-extra-fill" style="position:absolute;width:44%;height:6px;background:white"></div>
+      <div></div>
+      <div style="width:100%;height:100%">
+      <div role="slider" aria-label="Прогресс воспроизведения" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" style="width:100%;height:100%">
+        <input type="hidden" name="slider" data-testid="slider_input" value="0">
+        <div style="left:0%;width:0%;height:100%;background:blue"></div>
+        <div data-testid="fixture-stale-fill" style="position:absolute;left:0%;width:44%;height:6px;background:white"></div>
+      </div>
+      </div>
     </div>
+    ${withBodyWrapper ? "</div>" : ""}
     <script>
-      // Local event wiring only; actual VK handlers still need user validation.
+      // Match the supplied DOM's percentage fill and inconsistent ARIA max.
+      // Only actual browser gestures may seek; synthetic dispatch is rejected.
       audio.remove();
       window.fixtureDetachedAudio = audio;
-      const bar = document.querySelector('[data-testid="AudioPlayerBlock_ProgressBar"]');
-      const slider = bar.querySelector('[role="slider"]');
+      const slider = document.querySelector('[role="slider"]');
+      const nativeBlock = slider.closest('[data-testid="audioplayerplaybackbody-progressbar"]') || slider.closest('[data-testid="AudioPlayerBlock_ProgressBar"]');
+      window.fixtureNativeParent = slider.parentElement;
+      const fill = slider.querySelector('div');
+      function updateProgress() {
+        if (!Number.isFinite(audio.duration)) return;
+        const percent = audio.currentTime / audio.duration * 100;
+        slider.setAttribute('aria-valuenow', String(percent));
+        slider.querySelector('input').value = String(percent);
+        fill.style.width = percent + '%';
+      }
       let pendingSeek = null;
-      bar.addEventListener('mousedown', event => {
-        if (event.target !== bar) return;
-        const rect = bar.getBoundingClientRect();
+      slider.addEventListener('mousedown', event => {
+        if (!event.isTrusted) return;
+        const rect = nativeBlock.getBoundingClientRect();
         pendingSeek = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
       });
-      bar.addEventListener('mousemove', event => {
-        if (pendingSeek === null) return;
-        const rect = bar.getBoundingClientRect();
-        pendingSeek = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-      });
-      document.addEventListener('mouseup', () => {
-        if (pendingSeek === null || !Number.isFinite(audio.duration)) return;
+      document.addEventListener('mouseup', event => {
+        if (!event.isTrusted || pendingSeek === null || !Number.isFinite(audio.duration)) return;
         audio.currentTime = pendingSeek * audio.duration;
         pendingSeek = null;
-        slider.setAttribute('aria-valuenow', String(audio.currentTime / audio.duration));
+        updateProgress();
       });
-      audio.addEventListener('timeupdate', () => {
-        if (Number.isFinite(audio.duration)) slider.setAttribute('aria-valuenow', String(audio.currentTime / audio.duration));
-      });
+      audio.addEventListener('timeupdate', updateProgress);
     </script>
   </body>`);
   const host = await fixture(page, html, "/music/catalog/fixture");
   await host.getByRole("button", { name: /Ночной маршрут Тестовый исполнитель/ }).click();
   const currentTime = () => page.evaluate(() => (Reflect.get(window, "fixtureDetachedAudio") as HTMLAudioElement).currentTime);
   await expect.poll(currentTime).toBeGreaterThan(0);
+  await page.evaluate(() => {
+    const audio = Reflect.get(window, "fixtureDetachedAudio") as HTMLAudioElement;
+    audio.pause();
+    audio.currentTime = audio.duration / 100;
+  });
+  await expect(host.locator(".elapsed")).toHaveText("1 %");
   await expect(page.locator("audio")).toHaveCount(0);
-  const progress = host.getByRole("slider", { name: "Позиция записи VK" });
-  await expect(progress).toBeEnabled();
-  await expect(progress).toHaveAttribute("max", "100");
+  const nativeProgress = page.getByRole("slider", { name: "Прогресс воспроизведения", exact: true });
+  await expect(nativeProgress).toBeVisible();
+  const nativeBlock = page.getByTestId(withBodyWrapper ? 'audioplayerplaybackbody-progressbar' : 'AudioPlayerBlock_ProgressBar');
+  await expect(nativeBlock).toHaveAttribute("popover", "manual");
+  const nativeRect = (await nativeProgress.boundingBox())!;
+  const placeholderRect = await host.locator(".progress input").evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  });
+  expect(nativeRect).toEqual(placeholderRect);
+  expect(nativeRect.height).toBe(32);
+  await expect(nativeBlock).toHaveCSS("opacity", "0");
+  const paintedProgress = host.locator(".progress input");
+  await expect(paintedProgress).toBeVisible();
+  await expect(paintedProgress).toHaveCSS("opacity", "1");
+  await expect(paintedProgress).toHaveCSS("background-size", "100% 6px");
   await expect(host.locator(".duration")).toHaveText("100 %");
-  await progress.fill("50");
-  await expect.poll(currentTime).toBeGreaterThanOrEqual(16);
-  await expect.poll(currentTime).toBeLessThan(18);
-  await progress.fill("25");
-  await expect.poll(currentTime).toBeGreaterThanOrEqual(8);
-  await expect.poll(currentTime).toBeLessThan(10);
+  await nativeProgress.click({ position: { x: nativeRect.width / 2, y: nativeRect.height / 2 } });
+  await expect.poll(currentTime).toBeCloseTo(16, 0);
+  await expect(host.locator(".elapsed")).toHaveText("50 %");
+  await expect(paintedProgress).toHaveCSS("--classic-progress", "50%");
+  const previewPath = test.info().outputPath("classic-progress-preview.png");
+  await host.locator(".device").screenshot({ path: previewPath });
+  await test.info().attach("classic-progress-preview", { path: previewPath, contentType: "image/png" });
+  const quarterRect = (await nativeProgress.boundingBox())!;
+  await nativeProgress.click({ position: { x: quarterRect.width / 4, y: quarterRect.height / 2 } });
+  await expect.poll(currentTime).toBeCloseTo(8, 0);
+  await expect(host.locator(".elapsed")).toHaveText("25 %");
+  await host.getByRole("button", { name: "Следующий трек VK" }).click();
+  await expect(host.locator(".track-title")).toHaveText("После дождя");
+  await page.evaluate(() => {
+    const audio = Reflect.get(window, "fixtureDetachedAudio") as HTMLAudioElement;
+    audio.pause();
+    audio.currentTime = audio.duration / 100;
+  });
+  await expect(host.locator(".elapsed")).toHaveText("1 %");
+  // A stale VK decoration must not draw over CLASSIC's current-track fill.
+  expect(await page.getByTestId("fixture-stale-fill").evaluate((element) => (element as HTMLElement).style.width)).toBe("44%");
+  await expect(nativeBlock).toHaveCSS("opacity", "0");
+  await expect(paintedProgress).toHaveCSS("--classic-progress", "1%");
+  await expect(paintedProgress).toHaveValue("1");
+  await host.getByRole("button", { name: "Показать оригинальную страницу VK" }).click();
+  expect(await nativeBlock.getAttribute("popover")).toBeNull();
+  expect(await nativeBlock.getAttribute("data-classic-vk-seek")).toBeNull();
+  await expect(nativeBlock).toHaveCSS("opacity", "1");
+  expect(await nativeProgress.evaluate((element) => element.parentElement === Reflect.get(window, "fixtureNativeParent"))).toBe(true);
+  await expect.poll(currentTime).toBeCloseTo(0.32, 1);
+});
+}
+
+test.describe("mobile CLASSIC layout", () => {
+  test.use({ isMobile: true, hasTouch: true });
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 844, height: 390 },
+  ]) {
+    test(`list, player and wheel fit ${viewport.width}x${viewport.height} without resizing for notices`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const html = (await readFile("tests/fixtures/vk-music.html", "utf8"))
+        .replace('<head>', '<head><meta name="viewport" content="width=device-width,initial-scale=1">');
+      const host = await fixture(page, html);
+      const device = host.locator(".device");
+      const original = await device.boundingBox();
+      for (const locator of [device, host.locator(".screen"), host.locator(".wheel")]) {
+        const box = (await locator.boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+      }
+      await host.getByRole("button", { name: /Ночной маршрут Тестовый исполнитель/ }).tap();
+      await expect(host.locator(".track-title")).toHaveText("Ночной маршрут");
+      const bar = host.locator(".progress input");
+      await bar.scrollIntoViewIfNeeded();
+      const rect = (await bar.boundingBox())!;
+      const screenBody = (await host.locator(".body").boundingBox())!;
+      expect(rect.x).toBeGreaterThanOrEqual(screenBody.x);
+      expect(rect.x + rect.width).toBeLessThanOrEqual(screenBody.x + screenBody.width);
+      expect(rect.y).toBeGreaterThanOrEqual(screenBody.y);
+      expect(rect.y + rect.height).toBeLessThanOrEqual(screenBody.y + screenBody.height);
+      await expect(bar).toHaveCSS("background-size", "100% 6px");
+      const after = (await device.boundingBox())!;
+      expect(after.width).toBe(original!.width);
+      expect(after.height).toBe(original!.height);
+      for (const selector of [".device", ".body", ".message"]) {
+        expect(await host.locator(selector).evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      }
+      if (viewport.width === 390) {
+        await page.screenshot({ path: test.info().outputPath("classic-mobile.png") });
+      }
+    });
+  }
 });
 
 test("long footer notices do not resize or move the iPod body", async ({ page }) => {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLASSIC — тестовый плеер VK
 // @namespace    https://github.com/Cackeeev/demo-qa-landing
-// @version      0.1.4
+// @version      0.1.9
 // @description  Интерфейс iPod поверх веб-плеера VK. Эксперимент: только управление существующей страницей, без токенов и внешних серверов.
 // @match        https://vk.ru/*
 // @match        https://www.vk.ru/*
@@ -17,7 +17,7 @@
 
 (() => {
   "use strict";
-  const VERSION = "0.1.4";
+  const VERSION = "0.1.9";
   const HOST_ID = "classic-vk-controller";
   const ALLOWED = new Set([
     "vk.ru",
@@ -94,6 +94,7 @@
   let drag = null;
   let suppressClick = false;
   let lastFocused = null;
+  let nativeSeekView = null;
   const pressTimers = new Map();
   const musicPath = () =>
     /^\/(?:audios?(?:-?\d+)?|music)(?:\/|$)/i.test(location.pathname);
@@ -187,7 +188,13 @@
       const maximum = Number(input ? slider.max || 100 : slider.getAttribute("aria-valuemax"));
       const value = Number(input ? slider.value : slider.getAttribute("aria-valuenow"));
       if (![minimum, maximum, value].every(Number.isFinite) || maximum <= minimum) continue;
-      return { slider, minimum, maximum, fraction: Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum))) };
+      // In the supplied VK HTML aria-valuemax is 1, while both the hidden
+      // input and rendered fill use percentages. Follow the rendered fill.
+      const fill = !input && slider.querySelector("input[type='hidden'][data-testid='slider_input']")
+        ? Array.from(slider.children).find((child) => child instanceof HTMLElement && child.tagName === "DIV" && child.style.left === "0%" && /^\d+(?:\.\d+)?%$/.test(child.style.width))
+        : null;
+      const fraction = fill ? parseFloat(fill.style.width) / 100 : (value - minimum) / (maximum - minimum);
+      return { slider, minimum, maximum, fraction: Math.max(0, Math.min(1, fraction)) };
     }
     return null;
   }
@@ -221,6 +228,7 @@
       playing,
       pausedKnown,
       duration,
+      control,
       seekFraction: control?.fraction ?? null,
       position:
         audio && Number.isFinite(audio.currentTime) ? audio.currentTime : null,
@@ -262,6 +270,7 @@
       refresh();
       return;
     }
+    restoreNativeSeek();
     currentId = track.id;
     if (!clickNative(
       first(SELECTORS.rowPlay, track.row) ||
@@ -296,6 +305,7 @@
     else notify("Сначала открой свою музыку на странице VK и обнови список.");
   }
   function next(direction) {
+    restoreNativeSeek();
     if (
       clickNative(first(direction > 0 ? SELECTORS.next : SELECTORS.previous))
     ) {
@@ -331,20 +341,6 @@
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(slider, String(value));
       slider.dispatchEvent(new Event("input", { bubbles: true }));
       slider.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      // Forward the user's seek gesture to the page's own progress bar. Do not
-      // assign aria-valuenow: only VK can confirm that its position changed.
-      const bar = slider.closest("[data-testid='AudioPlayerBlock_ProgressBar']") || slider;
-      const rect = bar.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-      const coordinates = { clientX: rect.left + rect.width * fraction, clientY: rect.top + rect.height / 2, button: 0, bubbles: true, cancelable: true, composed: true };
-      const start = { ...coordinates, clientX: rect.left + rect.width * control.fraction };
-      // Target the track, not its ARIA thumb, and use one mouse gesture.
-      // Synthetic pointer capture must not steal the real CLASSIC range drag.
-      bar.dispatchEvent(new MouseEvent("mousedown", { ...start, buttons: 1 }));
-      bar.dispatchEvent(new MouseEvent("mousemove", { ...coordinates, buttons: 1 }));
-      bar.dispatchEvent(new MouseEvent("mouseup", { ...coordinates, buttons: 0 }));
-      bar.dispatchEvent(new MouseEvent("click", { ...coordinates, buttons: 0, detail: 1 }));
     }
     requestAnimationFrame(updateStatus);
   }
@@ -356,7 +352,7 @@
   <style>
   :host{all:initial;font-family:Arial,Helvetica,sans-serif;color:#26322e;color-scheme:light;font-size:14px}*{box-sizing:border-box}button,input,textarea{font:inherit}button{cursor:pointer;color:inherit;border:0;background:none;touch-action:manipulation}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #3877b9;outline-offset:3px}[hidden]{display:none!important}
   .launch{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom));left:16px;z-index:2147483646;padding:13px 17px;border-radius:30px;background:linear-gradient(#eeefea,#c7ccca);color:#293b35;box-shadow:0 3px 15px #142c3455;border:1px solid #a4aeaa;font-weight:700;font-size:12px}
-  .overlay{position:fixed;inset:0;z-index:2147483646;background:#ecebe4f5;overflow:auto;overscroll-behavior:contain;display:flex;align-items:safe center;justify-content:center;padding:24px;color:#26322e}.device{width:390px;max-width:100%;padding:19px 22px 18px;border:1px solid #9ca39e;border-radius:31px;background:repeating-linear-gradient(0deg,#fff1 0 1px,#48574c08 1px 2px),linear-gradient(110deg,#c2c7c5,#e5e7e3 35%,#bfc6c4);box-shadow:inset 0 0 0 2px #eef0ea99,0 14px 45px #20302b30}.brand{display:flex;align-items:center;justify-content:space-between;font-family:monospace;letter-spacing:2px;font-size:9px;color:#6b7971;margin-bottom:12px}.brand button{font-size:11px;letter-spacing:0;padding:7px 9px;border-radius:5px;background:#f1f4ec88}.screen{height:360px;min-height:300px;display:flex;flex-direction:column;overflow:hidden;border:2px solid #697770;border-radius:10px;background:#edf1e9;box-shadow:0 1px 0 2px #f7f8ef,inset 0 0 8px #37493615}.screen-head{height:35px;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:0 8px;background:linear-gradient(#f6f7f0,#dce3d9);border-bottom:1px solid #abb8aa}.screen-head h1{font:700 14px Arial;margin:0;text-align:center}.screen-head button{font-size:11px;padding:7px 4px}.indicator{height:7px;width:7px;border-radius:50%;background:#9ba79b;flex-shrink:0}.indicator.playing{background:#57854f;box-shadow:0 0 4px #628e5a66}.body{min-height:0;flex:1;overflow:auto;scrollbar-width:thin}.row{width:100%;min-height:49px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:8px 11px;border:1px solid transparent;font-size:12px}.row strong{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.row small{display:block;color:#82917e;font-size:10px;margin-top:4px}.row>span:first-child{min-width:0}.row.selected{background:linear-gradient(#4395e4,#2676c6);color:white;border-color:#2a75bf}.row.selected small{color:#dcecff}.row>span:last-child{font-size:10px;white-space:nowrap}.search{padding:8px}.search input{width:100%;padding:8px;border:1px solid #b9c5b3;border-radius:5px;background:#fafbf6;font-size:16px}.foot{padding:6px 8px;border-top:1px solid #b6c3b0;background:#dbe3d5;min-height:24px;font-size:9px;color:#718369;line-height:1.4}.empty{padding:21px 15px;font-size:12px;line-height:1.8;color:#788c71}.empty strong{display:block;margin-bottom:8px;color:#496143}.empty button,.action{min-height:38px;padding:9px 12px;border-radius:6px;background:#d9e4d1;color:#44633b;font-size:11px;display:block;margin:10px 0;width:100%;text-align:left}.now{padding:14px 16px;text-align:center}.cover{width:133px;height:133px;margin:0 auto 12px;background:#153b49;border:2px solid #fcfbef;box-shadow:0 3px 8px #203b322b;position:relative;overflow:hidden}.sun{position:absolute;top:22px;left:44px;width:50px;height:50px;border-radius:50%;background:linear-gradient(#f0b15c,#d57439)}.hill{position:absolute;bottom:-60px;left:-40px;width:190px;height:130px;background:#718c79;rotate:34deg}.hill.second{background:#d9c89f;left:69px;rotate:-31deg;bottom:-74px}.now h2{margin:0;font-size:16px;overflow-wrap:anywhere}.now p{margin:5px 0;color:#819178;font-size:11px}.now-label{font-size:10px;color:#879780;min-height:14px;margin:8px 0}.progress{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:10px;font-variant-numeric:tabular-nums}.progress input{min-width:0;width:100%;accent-color:#2c7ac6}.now .source{font-size:9px;margin-top:10px;color:#8d9a85}
+  .overlay{position:fixed;inset:0;z-index:2147483646;background:#ecebe4f5;overflow:auto;overscroll-behavior:contain;display:flex;align-items:safe center;justify-content:center;padding:24px;color:#26322e}.device{width:390px;max-width:100%;padding:19px 22px 18px;border:1px solid #9ca39e;border-radius:31px;background:repeating-linear-gradient(0deg,#fff1 0 1px,#48574c08 1px 2px),linear-gradient(110deg,#c2c7c5,#e5e7e3 35%,#bfc6c4);box-shadow:inset 0 0 0 2px #eef0ea99,0 14px 45px #20302b30}.brand{display:flex;align-items:center;justify-content:space-between;font-family:monospace;letter-spacing:2px;font-size:9px;color:#6b7971;margin-bottom:12px}.brand button{font-size:11px;letter-spacing:0;padding:7px 9px;border-radius:5px;background:#f1f4ec88}.screen{height:360px;min-height:300px;display:flex;flex-direction:column;overflow:hidden;border:2px solid #697770;border-radius:10px;background:#edf1e9;box-shadow:0 1px 0 2px #f7f8ef,inset 0 0 8px #37493615}.screen-head{height:35px;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:0 8px;background:linear-gradient(#f6f7f0,#dce3d9);border-bottom:1px solid #abb8aa}.screen-head h1{font:700 14px Arial;margin:0;text-align:center}.screen-head button{font-size:11px;padding:7px 4px}.indicator{height:7px;width:7px;border-radius:50%;background:#9ba79b;flex-shrink:0}.indicator.playing{background:#57854f;box-shadow:0 0 4px #628e5a66}.body{min-height:0;flex:1;overflow:auto;scrollbar-width:thin}.row{width:100%;min-height:49px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:8px 11px;border:1px solid transparent;font-size:12px}.row strong{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.row small{display:block;color:#82917e;font-size:10px;margin-top:4px}.row>span:first-child{min-width:0}.row.selected{background:linear-gradient(#4395e4,#2676c6);color:white;border-color:#2a75bf}.row.selected small{color:#dcecff}.row>span:last-child{font-size:10px;white-space:nowrap}.search{padding:8px}.search input{width:100%;padding:8px;border:1px solid #b9c5b3;border-radius:5px;background:#fafbf6;font-size:16px}.foot{padding:6px 8px;border-top:1px solid #b6c3b0;background:#dbe3d5;min-height:24px;font-size:9px;color:#718369;line-height:1.4}.empty{padding:21px 15px;font-size:12px;line-height:1.8;color:#788c71}.empty strong{display:block;margin-bottom:8px;color:#496143}.empty button,.action{min-height:38px;padding:9px 12px;border-radius:6px;background:#d9e4d1;color:#44633b;font-size:11px;display:block;margin:10px 0;width:100%;text-align:left}.now{padding:14px 16px;text-align:center}.cover{width:133px;height:133px;margin:0 auto 12px;background:#153b49;border:2px solid #fcfbef;box-shadow:0 3px 8px #203b322b;position:relative;overflow:hidden}.sun{position:absolute;top:22px;left:44px;width:50px;height:50px;border-radius:50%;background:linear-gradient(#f0b15c,#d57439)}.hill{position:absolute;bottom:-60px;left:-40px;width:190px;height:130px;background:#718c79;rotate:34deg}.hill.second{background:#d9c89f;left:69px;rotate:-31deg;bottom:-74px}.now h2{margin:0;font-size:16px;overflow-wrap:anywhere}.now p{margin:5px 0;color:#819178;font-size:11px}.now-label{font-size:10px;color:#879780;min-height:14px;margin:8px 0}.progress{display:flex;flex-wrap:wrap;align-items:center;column-gap:0;row-gap:4px;margin-top:12px;font-size:10px;font-variant-numeric:tabular-nums}.progress .elapsed,.progress .duration{flex:0 0 50%;white-space:nowrap;text-align:left}.progress .duration{text-align:right}.progress input{order:3;flex:0 0 100%;min-width:0;width:100%;height:32px;margin:0;padding:0;border:0;appearance:none;-webkit-appearance:none;touch-action:none;background:linear-gradient(to right,#f6f8f3 0 var(--classic-progress,0%),#aebaa5 var(--classic-progress,0%) 100%) center/100% 6px no-repeat}.progress input.native-seek{opacity:1;pointer-events:none}.progress input::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height:8px;border:0;border-radius:50%;background:transparent}.progress input::-moz-range-thumb{width:8px;height:8px;border:0;border-radius:50%;background:transparent}.now .source{font-size:9px;margin-top:10px;color:#8d9a85}
   .wheel{width:236px;height:236px;border-radius:50%;border:1px solid #a2aaa1;margin:29px auto 0;position:relative;background:linear-gradient(130deg,#fafbf1,#e5e8dd);box-shadow:inset 0 2px 3px white,0 1px 0 #fff9;touch-action:none;user-select:none;-webkit-user-select:none}.wheel button{position:absolute;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:#83917c;touch-action:none;font-weight:bold;--press-scale:.92}.menu{top:6px;left:50%;transform:translateX(-50%);font-size:12px}.prev{top:50%;left:6px;transform:translateY(-50%);font-size:24px}.next{top:50%;right:6px;transform:translateY(-50%);font-size:24px}.play{bottom:6px;left:50%;transform:translateX(-50%);font-size:19px}.wheel .center{left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;width:88px;height:88px;border:1px solid #9ea99c;background:conic-gradient(#cbd3c9,#edf0e9,#aab7a9,#dbe2d5,#cbd3c9);box-shadow:inset 0 0 0 2px #edf1e577;color:#76866f;font-size:10px}.hint{text-align:center;color:#82937a;font-size:9px;margin:16px 0 0}.message{font-size:11px;line-height:1.6;height:60px;min-height:60px;max-height:60px;overflow:auto;overflow-wrap:anywhere;padding:11px 1px 0;color:#526d47}.settings{padding:12px;font-size:11px;line-height:1.8;color:#718568}.settings h2{font-size:14px;color:#465f3c;margin:0 0 8px}.settings p{margin:6px 0 13px}.settings pre{white-space:pre-wrap;overflow-wrap:anywhere;font:10px monospace;background:#e1e8da;padding:10px;border-radius:5px}.settings details{border-top:1px solid #ccd7c3;padding:10px 0}.settings summary{cursor:pointer;color:#4d6a42}.toggle{display:flex;align-items:center;justify-content:space-between;min-height:43px;width:100%;text-align:left;border-bottom:1px solid #d3ddca;font-size:11px}.toggle span:last-child{color:#8e9e83}.toggle[aria-pressed=true] span:last-child{color:#357739}.pressed{animation:press 220ms ease-out}button:active{filter:brightness(.94);scale:var(--press-scale,.97)}@keyframes press{40%{scale:var(--press-scale,.97);filter:brightness(.93)}}@media(max-width:500px){.overlay{padding:0;background:#c5cdc4;align-items:flex-start}.device{width:100%;min-height:100svh;border:0;border-radius:0;box-shadow:none;padding:calc(12px + env(safe-area-inset-top)) 22px calc(16px + env(safe-area-inset-bottom))}.screen{height:44svh;min-height:320px;max-height:400px}.wheel{width:min(64vw,252px);height:min(64vw,252px);margin-top:30px}.brand{margin-bottom:10px}.now{padding-top:15px}.now .cover{width:clamp(120px,17svh,151px);height:clamp(120px,17svh,151px)}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
   </style>
   <button class="launch" type="button" aria-label="Открыть CLASSIC">CLASSIC · VK</button>
@@ -382,6 +378,80 @@
       (document.head || document.documentElement).append(adStyle);
   }
   updateAds();
+  const nativeSeekStyle = document.createElement("style");
+  nativeSeekStyle.textContent = `
+    [data-classic-vk-seek="true"]{position:fixed!important;inset:auto!important;left:var(--classic-seek-left)!important;top:var(--classic-seek-top)!important;width:var(--classic-seek-width)!important;height:var(--classic-seek-height)!important;min-width:0!important;max-width:none!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;box-sizing:border-box!important;background:transparent!important;overflow:visible!important;pointer-events:auto!important;touch-action:none!important}
+    [data-classic-vk-seek="true"] [data-testid="AudioPlayerBlock_ProgressBar"],[data-classic-vk-seek="true"] div:has(> [role="slider"]){width:100%!important;height:100%!important}
+    /* Keep VK's trusted hit target, but paint progress from the same observed
+       fraction as the label. VK may retain additional fills across tracks. */
+    [data-classic-vk-seek="true"]{opacity:0!important}
+    [data-classic-vk-seek="true"] [role="slider"]{position:relative!important}
+    :is([data-classic-vk-seek="true"][role="slider"],[data-classic-vk-seek="true"] [role="slider"]){width:100%!important;height:100%!important;min-height:32px!important;background:transparent!important;border:0!important;padding:0!important;pointer-events:auto!important;touch-action:none!important}
+    :is([data-classic-vk-seek="true"][role="slider"],[data-classic-vk-seek="true"] [role="slider"])>div{pointer-events:none!important}
+    [data-classic-vk-seek="true"]::backdrop{background:transparent;pointer-events:none}
+  `;
+  (document.head || document.documentElement).append(nativeSeekStyle);
+  function restoreNativeSeek() {
+    const saved = nativeSeekView;
+    if (!saved) return;
+    nativeSeekView = null;
+    try { if (saved.element.matches(":popover-open")) saved.element.hidePopover(); } catch { /* May have been unmounted by VK. */ }
+    for (const [name, value] of saved.attributes) {
+      if (value === null) saved.element.removeAttribute(name);
+      else saved.element.setAttribute(name, value);
+    }
+    for (const [name, value, priority] of saved.properties) {
+      if (value) saved.element.style.setProperty(name, value, priority);
+      else saved.element.style.removeProperty(name);
+    }
+    if (!saved.hadStyle && !saved.element.style.cssText) saved.element.removeAttribute("style");
+    if (saved.tabindex === null) saved.slider.removeAttribute("tabindex");
+    else saved.slider.setAttribute("tabindex", saved.tabindex);
+    saved.range.classList.remove("native-seek");
+  }
+  function presentNativeSeek(state) {
+    const control = !state.audio && opened && view === "now" ? state.control : null;
+    const slider = control?.slider;
+    // Keep all native progress-bar geometry and event-delegation ancestors
+    // together; only rendering changes, the DOM parent chain stays intact.
+    const element = slider?.closest("[data-testid='audioplayerplaybackbody-progressbar']") || slider?.closest("[data-testid='AudioPlayerBlock_ProgressBar']") || slider;
+    const range = $(".progress input");
+    if (!slider || slider instanceof HTMLInputElement || !range || typeof slider.showPopover !== "function") {
+      restoreNativeSeek();
+      return false;
+    }
+    if (nativeSeekView && (nativeSeekView.element !== element || nativeSeekView.slider !== slider || nativeSeekView.range !== range)) restoreNativeSeek();
+    const rect = range.getBoundingClientRect();
+    const frame = body.getBoundingClientRect();
+    if (!rect.width || !rect.height || rect.top < frame.top || rect.bottom > frame.bottom) {
+      restoreNativeSeek();
+      return false;
+    }
+    if (!nativeSeekView) {
+      if (element.hasAttribute("popover")) return false;
+      const names = ["--classic-seek-left", "--classic-seek-top", "--classic-seek-width", "--classic-seek-height"];
+      nativeSeekView = {
+        element, slider, range, hadStyle: element.hasAttribute("style"), tabindex: slider.getAttribute("tabindex"),
+        attributes: ["popover", "data-classic-vk-seek"].map((name) => [name, element.getAttribute(name)]),
+        properties: names.map((name) => [name, element.style.getPropertyValue(name), element.style.getPropertyPriority(name)]),
+      };
+      element.setAttribute("data-classic-vk-seek", "true");
+      element.setAttribute("popover", "manual");
+      if (!slider.hasAttribute("tabindex")) slider.setAttribute("tabindex", "0");
+    }
+    element.style.setProperty("--classic-seek-left", `${rect.left}px`);
+    element.style.setProperty("--classic-seek-top", `${rect.top}px`);
+    element.style.setProperty("--classic-seek-width", `${rect.width}px`);
+    element.style.setProperty("--classic-seek-height", `${rect.height}px`);
+    try {
+      if (!element.matches(":popover-open")) element.showPopover();
+      range.classList.add("native-seek");
+      return true;
+    } catch {
+      restoreNativeSeek();
+      return false;
+    }
+  }
   function haptic(milliseconds = 9) {
     if (!preferences.vibration || typeof navigator.vibrate !== "function")
       return;
@@ -448,6 +518,7 @@
       refresh();
     }
     opened = value;
+    if (!value) restoreNativeSeek();
     preferences.open = value;
     savePreferences();
     $(".overlay").hidden = !value;
@@ -460,6 +531,7 @@
     } else lastFocused?.focus?.({ preventScroll: true });
   }
   function renderView() {
+    restoreNativeSeek();
     body.replaceChildren();
     $(".screen-head h1").textContent =
       view === "now"
@@ -712,11 +784,15 @@
         ? formatTime(state.duration) : "—:——";
       const range = $(".progress input");
       range.max = String(state.duration || 100);
-      range.disabled = !state.seekable;
+      const control = state.control;
+      const custom = !state.audio && control && !(control.slider instanceof HTMLInputElement);
+      range.disabled = !state.seekable || !!custom;
       // Position comes from the page, including while the CLASSIC control has
       // focus; an ignored native seek must not leave a fabricated position.
       range.value = String(state.position ?? ((state.seekFraction || 0) * (state.duration || 100)));
+      range.style.setProperty("--classic-progress", `${Number(range.value) / Number(range.max) * 100}%`);
     }
+    presentNativeSeek(state);
   }
   function refresh() {
     tracks = scanTracks();
@@ -896,6 +972,8 @@
     "pagehide",
     (event) => {
       if (event.persisted) return;
+      restoreNativeSeek();
+      nativeSeekStyle.remove();
       observer.disconnect();
       clearInterval(interval);
       clearTimeout(refreshTimer);
